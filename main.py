@@ -1,4 +1,5 @@
-      const sp=monster.speed*(monster.state==="chase"?1.7:1);
+
+const sp=monster.speed*(monster.state==="chase"?1.7:1);
       moveEntity(monster,vx/len*sp*dt,vy/len*sp*dt,9);
     }
   }
