@@ -1,70 +1,132 @@
 
-print("===== 수면 습관 분석 및 개선 프로그램 =====")
+import streamlit as st
+import pandas as pd
 
-sleep_records = []
+# 페이지 설정
+st.set_page_config(
+    page_title="수면 습관 분석 프로그램",
+    page_icon="🌙",
+    layout="centered"
+)
 
-while True:
-    print("\n1. 수면 기록 입력")
-    print("2. 수면 기록 및 평균 확인")
-    print("3. 프로그램 종료")
+st.title("🌙 수면 습관 분석 프로그램")
+st.write("나의 수면 습관을 기록하고 분석해 보세요!")
 
-    choice = input("메뉴를 선택하세요: ")
+st.divider()
 
-    if choice == "1":
-        print("\n[수면 기록 입력]")
+# 수면 기록 저장 공간
+if "records" not in st.session_state:
+    st.session_state.records = []
 
-        day = input("날짜를 입력하세요: ")
-        sleep = int(input("취침 시간(0~23시): "))
-        wake = int(input("기상 시간(0~23시): "))
+# 1. 취침 시간과 기상 시간 입력
+st.subheader("1. 수면 시간 입력")
 
-        # 수면 시간 계산
-        if wake > sleep:
-            total = wake - sleep
-        else:
-            total = (24 - sleep) + wake
+date = st.date_input("날짜 선택")
 
-        print("\n총 수면 시간:", total, "시간")
+col1, col2 = st.columns(2)
 
-        # 수면 상태 분석 및 개선 조언
-        if total < 7:
-            print("수면 상태: 수면 시간이 부족합니다.")
-            print("개선 조언: 조금 더 일찍 잠자리에 들어보세요.")
-        elif total <= 9:
-            print("수면 상태: 적절한 수면 시간입니다.")
-            print("개선 조언: 현재의 수면 습관을 유지해 보세요.")
-        else:
-            print("수면 상태: 비교적 긴 수면 시간입니다.")
-            print("개선 조언: 일정한 취침 및 기상 시간을 유지해 보세요.")
+with col1:
+    sleep_time = st.time_input("취침 시간", value=None)
 
-        # 기록 저장
-        sleep_records.append([day, total])
-        print("수면 기록이 저장되었습니다.")
+with col2:
+    wake_time = st.time_input("기상 시간", value=None)
 
-    elif choice == "2":
-        print("\n[수면 기록 및 평균 분석]")
+# 2. 하루 수면 시간 계산
+if st.button("수면 시간 분석하기", use_container_width=True):
 
-        if len(sleep_records) == 0:
-            print("저장된 수면 기록이 없습니다.")
-        else:
-            for record in sleep_records:
-                print(record[0], ":", record[1], "시간")
+    if sleep_time is None or wake_time is None:
+        st.warning("취침 시간과 기상 시간을 모두 입력해 주세요.")
 
-            average = sum(record[1] for record in sleep_records) / len(sleep_records)
-
-            print("\n기록한 날짜:", len(sleep_records), "일")
-            print("평균 수면 시간:", round(average, 1), "시간")
-
-            if average < 7:
-                print("전체 분석: 평균 수면 시간이 부족합니다.")
-                print("조언: 수면 시간을 조금씩 늘려보세요.")
-            elif average <= 9:
-                print("전체 분석: 평균 수면 시간이 적절합니다.")
-            else:
-                print("전체 분석: 평균 수면 시간이 비교적 깁니다.")
-
-    elif choice == "3":
-        print("프로그램을 종료합니다.")
-        break
+    elif sleep_time == wake_time:
+        st.warning("취침 시간과 기상 시간을 다르게 입력해 주세요.")
 
     else:
-        print("잘못된 입력입니다. 다시 선택하세요.")
+        sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
+        wake_minutes = wake_time.hour * 60 + wake_time.minute
+
+        if wake_minutes > sleep_minutes:
+            total_minutes = wake_minutes - sleep_minutes
+        else:
+            total_minutes = (24 * 60 - sleep_minutes) + wake_minutes
+
+        total_hours = total_minutes / 60
+
+        # 3. 수면 상태 분석
+        st.subheader("2. 수면 분석 결과")
+
+        st.metric("총 수면 시간", f"{total_hours:.1f}시간")
+
+        if total_hours < 7:
+            st.error("수면 시간이 부족한 편입니다.")
+            st.info("개선 조언: 취침 시간을 조금 앞당겨 보세요.")
+
+        elif total_hours <= 9:
+            st.success("적절한 수면 시간입니다!")
+            st.info("개선 조언: 현재의 규칙적인 수면 습관을 유지해 보세요.")
+
+        else:
+            st.info("비교적 긴 수면 시간입니다.")
+            st.info("개선 조언: 일정한 취침 및 기상 시간을 유지해 보세요.")
+
+        # 4. 수면 기록 저장
+        record = {
+            "날짜": str(date),
+            "취침 시간": sleep_time.strftime("%H:%M"),
+            "기상 시간": wake_time.strftime("%H:%M"),
+            "수면 시간": round(total_hours, 2)
+        }
+
+        # 같은 날짜의 기록은 수정
+        st.session_state.records = [
+            r for r in st.session_state.records
+            if r["날짜"] != str(date)
+        ]
+
+        st.session_state.records.append(record)
+
+        st.success("수면 기록이 저장되었습니다!")
+
+st.divider()
+
+# 5. 여러 날의 수면 기록과 평균 계산
+st.subheader("3. 나의 수면 기록")
+
+if len(st.session_state.records) > 0:
+
+    df = pd.DataFrame(st.session_state.records)
+
+    df = df.sort_values("날짜")
+
+    st.dataframe(df, use_container_width=True)
+
+    average = df["수면 시간"].mean()
+
+    st.metric("평균 수면 시간", f"{average:.1f}시간")
+
+    st.subheader("4. 수면 시간 변화 그래프")
+
+    chart_df = df.set_index("날짜")[["수면 시간"]]
+
+    st.line_chart(chart_df)
+
+    # 평균 수면 시간 분석
+    st.subheader("5. 전체 수면 습관 분석")
+
+    if average < 7:
+        st.warning("평균 수면 시간이 부족합니다. 수면 시간을 늘려보세요.")
+    elif average <= 9:
+        st.success("평균 수면 시간이 적절한 편입니다!")
+    else:
+        st.info("평균 수면 시간이 비교적 깁니다.")
+
+    # 기록 삭제
+    if st.button("전체 기록 삭제"):
+        st.session_state.records = []
+        st.rerun()
+
+else:
+    st.info("아직 저장된 수면 기록이 없습니다.")
+
+st.divider()
+
+st.caption("※ 수면 분석 결과는 참고용이며 개인별 수면 필요량에 따라 달라질 수 있습니다.")
